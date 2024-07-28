@@ -1,6 +1,7 @@
 package com.javacorner.admin.security;
 
 import com.javacorner.admin.filter.JWTAuthenticationFilter;
+import com.javacorner.admin.filter.JWTAuthorizationFilter;
 import com.javacorner.admin.helper.JWTHelper;
 import com.javacorner.admin.service.UserService;
 import org.springframework.context.annotation.Bean;
@@ -11,10 +12,12 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
@@ -22,28 +25,25 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfiguration {
 
-    private final UserService userService;
+    private UserDetailsService userDetailsService;
+    private JWTHelper jwtHelper;
 
-    public SecurityConfiguration(UserService userService) {
-        this.userService = userService;
+    public SecurityConfiguration(UserDetailsService userDetailsService, JWTHelper jwtHelper) {
+        this.userDetailsService=userDetailsService;
+        this.jwtHelper = jwtHelper;
     }
+
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // Create the JWT filter and set the authentication manager
-        JWTAuthenticationFilter jwtAuthenticationFilter = new JWTAuthenticationFilter(jwtHelper());
-        jwtAuthenticationFilter.setAuthenticationManager(authenticationManager(http.getSharedObject(AuthenticationConfiguration.class)));
-
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(AbstractHttpConfigurer::disable)  // Disable CSRF protection
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))  // Use stateless sessions
-                .authorizeRequests(authorize -> authorize
-                        .requestMatchers("/authenticate").permitAll()  // Allow unauthenticated access to authenticate endpoint
-                        .requestMatchers("/refresh-token/**").permitAll()  // Allow unauthenticated access to refresh-token endpoint
-                        .anyRequest().authenticated()  // All other requests require authentication
-                )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);  // Add the JWT filter before the default UsernamePasswordAuthenticationFilter
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(c -> c.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
+        http.authorizeRequests().requestMatchers("/refresh-token/**").permitAll();
+        http.authorizeRequests().anyRequest().authenticated();
+        http.addFilter(new JWTAuthenticationFilter(authenticationManager(http.getSharedObject(AuthenticationConfiguration.class)), jwtHelper));
+        http.addFilterBefore(new JWTAuthorizationFilter(jwtHelper), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
@@ -52,20 +52,18 @@ public class SecurityConfiguration {
         return authConfig.getAuthenticationManager();
     }
 
-    @Bean
-    public JWTHelper jwtHelper() {
-        return new JWTHelper();
-    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of("http://localhost:4200"));  // Frontend URL
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));  // HTTP methods
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));  // Allowed headers
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH"));  // HTTP methods
+        configuration.setAllowedHeaders(List.of("Access-Control-Allow-Headers", "Access-Control-Allow-Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers", "Origin", "Cache-Control", "Content-Type", "Authorization" ));  // Allowed headers
         configuration.setAllowCredentials(true);  // Allow credentials
-        configuration.setMaxAge(3600L);  // Set the max age for preflight requests
-        return request -> configuration;
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**",configuration);
+        return source;
     }
 
 }

@@ -2,6 +2,7 @@ package com.javacorner.admin.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.javacorner.admin.helper.JWTHelper;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -18,9 +19,11 @@ import java.util.stream.Collectors;
 
 public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
+    private AuthenticationManager authenticationManager;
     private final JWTHelper jwtHelper;
 
-    public JWTAuthenticationFilter(JWTHelper jwtHelper) {
+    public JWTAuthenticationFilter(AuthenticationManager authenticationManager, JWTHelper jwtHelper) {
+        this.authenticationManager = authenticationManager;
         this.jwtHelper = jwtHelper;
     }
 
@@ -29,7 +32,7 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         String email = request.getParameter("username");
         String password = request.getParameter("password");
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(email, password);
-        return getAuthenticationManager().authenticate(authenticationToken);
+        return authenticationManager.authenticate(authenticationToken);
     }
 
     @Override

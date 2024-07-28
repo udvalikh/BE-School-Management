@@ -2,6 +2,7 @@ package com.javacorner.admin.helper;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import org.springframework.stereotype.Component;
 
 import java.util.Date;
 import java.util.HashMap;
@@ -10,6 +11,7 @@ import java.util.Map;
 
 import static com.javacorner.admin.constant.JWTUtil.*;
 
+@Component
 public class JWTHelper {
 
     private final Algorithm algorithm = Algorithm.HMAC256(SECRET);
