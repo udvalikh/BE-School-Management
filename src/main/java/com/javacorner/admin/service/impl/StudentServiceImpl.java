@@ -39,14 +39,14 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public Student loadStudentById(Long studentId) {
-        return studentDao.findById(studentId).orElseThrow(()-> new EntityNotFoundException("Student Id with: "+ studentId+" Not Found"));
+        return studentDao.findById(studentId).orElseThrow(() -> new EntityNotFoundException("Student Id with: " + studentId + " Not Found"));
     }
 
     @Override
     public Page<StudentDTO> findStudentsByName(String name, int page, int size) {
-        PageRequest pageRequest=PageRequest.of(page, size);
-        Page<Student> studentsPage= studentDao.findStudentsByName(name, pageRequest);
-        return new PageImpl<>(studentsPage.getContent().stream().map(student-> studentMapper.fromStudent(student)).collect(Collectors.toList()), pageRequest, studentsPage.getTotalElements());
+        PageRequest pageRequest = PageRequest.of(page, size);
+        Page<Student> studentsPage = studentDao.findStudentsByName(name, pageRequest);
+        return new PageImpl<>(studentsPage.getContent().stream().map(student -> studentMapper.fromStudent(student)).collect(Collectors.toList()), pageRequest, studentsPage.getTotalElements());
 
     }
 
@@ -77,21 +77,19 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public StudentDTO updateStudent(StudentDTO studentDto) {
-        Student loadedStudent= loadStudentById(studentDto.getStudentId());
-        Student student= studentMapper.fromStudentDto(studentDto);
+        Student loadedStudent = loadStudentById(studentDto.getStudentId());
+        Student student = studentMapper.fromStudentDto(studentDto);
         student.setCourses(loadedStudent.getCourses());
         student.setUser(loadedStudent.getUser());
-        Student updatedStudent= studentDao.save(student);
+        Student updatedStudent = studentDao.save(student);
         return studentMapper.fromStudent(student);
     }
 
     @Override
     public void removeStudent(Long studentId) {
         Student student = loadStudentById(studentId);
-        Iterator<Course> courseIterator = student.getCourses().iterator();
-        if (courseIterator.hasNext()) {
-            Course course = courseIterator.next();
-            course.removeStudentFromCourse(student);
+        for (Course course : student.getCourses()) {
+            courseService.removeCourse(course.getCourseId());
         }
         studentDao.deleteById(studentId);
     }
